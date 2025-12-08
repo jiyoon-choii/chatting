@@ -46,9 +46,9 @@ public class ChatClient {
                 System.out.println("Chat session ended.");
                 break;
             }
+        sendAndRecieveMessage(userMessage, messageTransmitter, messageReciever);
         }
 
-        sendAndRecieveMessage(userMessage, messageTransmitter, messageReciever);
     }
 
     private void sendAndRecieveMessage(String message,
@@ -59,6 +59,11 @@ public class ChatClient {
         messageTransmitter.println(message);
         String serverResponse = messageReciever.readLine();
         System.out.println("Server Response :" + serverResponse);
+    }
+
+    public static void main(String[] args) {
+        ChatClient chatClient = new ChatClient();
+        chatClient.startChatSession();
     }
 
 }

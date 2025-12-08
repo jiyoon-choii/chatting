@@ -21,7 +21,8 @@ public class ChatServer {
             System.out.println(SERVER_START_MESSAGE + SERVER_PORT);
 
             while (true) {
-                try (Socket clientConnection = serverSocketConnection.accept();
+                try (
+                        Socket clientConnection = serverSocketConnection.accept();
                      BufferedReader messageReceiver = new BufferedReader(
                              new InputStreamReader(clientConnection.getInputStream()));
                      PrintWriter messageTransmitter = new PrintWriter(clientConnection.getOutputStream(), true))

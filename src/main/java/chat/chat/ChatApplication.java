@@ -9,10 +9,7 @@ public class ChatApplication {
 
 	public static void main(String[] args) {
 
-		ChatClient chatClient = new ChatClient();
-		chatClient.startChatSession();
-
-//		SpringApplication.run(ChatApplication.class, args);
+		SpringApplication.run(ChatApplication.class, args);
 
 	}
 
