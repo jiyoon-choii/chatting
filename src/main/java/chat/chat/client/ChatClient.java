@@ -44,9 +44,20 @@ public class ChatClient {
             receiveThread.setDaemon(true);
             receiveThread.start();
 
+            System.out.println("input your nickname : ");
+            String nickname = userInputReader.readLine();
+            if (nickname == null || nickname.isBlank()) {
+                System.out.println("nickname is not input");
+                return;
+            }
+            messageTransmitter.println(nickname); // 첫 줄로 닉네임 전송
+
+
             String userMessage;
+                // 입력 루프(명령어/일반 메시지 모두 서버로 전송)
             while (true) {
-                System.out.println(PROMPT_MESSAGE);
+//                System.out.println(PROMPT_MESSAGE);
+                System.out.print("Enter your message (명령어: /rooms, /join <room>, /leave): ");
                 userMessage = userInputReader.readLine();
                 if (userMessage == null) break;
 
