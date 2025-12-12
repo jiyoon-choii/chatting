@@ -85,7 +85,7 @@ public class ChatServer {
 
                     } else {
                         System.out.println("Message from client: " + line);
-                        broadcast("Message received: " + line, messageTransmitter);
+                        broadcast("Message received from [" + nickname + "] : " + line, messageTransmitter);
                     }
 
                 }
@@ -122,16 +122,19 @@ public class ChatServer {
     private void handleCommand(ClientSession session, String cmd, PrintWriter out) {
         String[] parts = cmd.split("\\s+", 2);
         String keyword = parts[0];
+        String content = (parts.length > 1) ? parts[1].trim() : null; //방 이름 추출
+//        String content = parts[1];
 
         switch (keyword) {
             // 방 정보
             case "/rooms" : {
-                // 방 목록 나열
 
+                // 방 정보 표시
                 // 방 없음
                 if (rooms.isEmpty()) {
                     out.println("[Server] no room exists");
                 } else {
+
                 // 방 목록
                     StringBuilder sb = new StringBuilder("[Server] room list: ");
                     rooms.keySet().forEach(name -> sb.append(name).append(" "));
@@ -139,6 +142,7 @@ public class ChatServer {
                 }
                 break;
             }
+
             // 참여 정보(입장)
             case "/join": {
                 if (parts.length < 2 || parts[1].isBlank()) {
@@ -160,7 +164,7 @@ public class ChatServer {
                 if (current != null) {
                     current.leave(session);
                     current.broadcastToAll("[OUT] " + session.getNickname() + " leaves " + current.getName());
-                    break;
+//                    break;
                 }
 
                 // 대상방으로 입장
@@ -196,6 +200,50 @@ public class ChatServer {
                 out.println("[Sever] moved to " + DEFAULT_ROOM);
                 break;
             }
+
+            // 방 만들기
+            case "/createRoom" : {
+                // 명령어 생성 (서버) v
+                // 명령어 입력 (클라이언트) v
+                // 방 이름 입력 (클라이언트) v
+                // 방 정보 서버 전달 (클라이언트->서버)
+                    // 방 유효성 체크
+                        // 이름 있는지
+                if (content == null || content.isBlank()) {
+                    out.println("[Server] No name");
+                    break;
+                }
+                        // 중복 체크
+                if (rooms.containsKey(content)) {
+                    out.println("[Server] Duplicated room name");
+                    break;
+                }
+                    // 검증 통과 ->
+
+                // 방 생성 & 방 목록 업데이트 (서버)
+                    // 방 객체 생성
+                Room room = new Room(content);
+                    // 방 목록에 추가
+                rooms.put(room.getName(), room);
+
+
+                // 방 참여 : 본인 소속 채팅방 정보 변경 (서버)
+                // 방,본인 정보 전달 (서버->클라이언트)
+
+                // 방으로 이동
+                    //방 퇴장
+                Room current = session.getCurrentRoom();
+                current.leave(session);
+                    // 현재 방 세팅
+                session.setCurrentRoom(room);
+                    //방 입장
+                room.join(session);
+                room.broadcastToAll("[IN] " + session.getNickname() + " join " + content);
+                out.println("[Server] moved to " + content);
+                break;
+
+            }
+
 
             default: {
                 out.println("[Server] unknown command: " + keyword);

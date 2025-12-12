@@ -56,8 +56,8 @@ public class ChatClient {
             String userMessage;
                 // 입력 루프(명령어/일반 메시지 모두 서버로 전송)
             while (true) {
-//                System.out.println(PROMPT_MESSAGE);
-                System.out.print("Enter your message (명령어: /rooms, /join <room>, /leave): ");
+                System.out.println(PROMPT_MESSAGE);
+//                System.out.print("Enter your message (명령어: /rooms, /join <room>, /leave): ");
                 userMessage = userInputReader.readLine();
                 if (userMessage == null) break;
 
@@ -66,7 +66,24 @@ public class ChatClient {
                     break;
                 }
 
+                // 방 생성일 시
+                if (userMessage.equals("/createRoom")) {
+                    // 방 이름 입력
+                    System.out.println("input your room name : ");
+                    String roomname = userInputReader.readLine();
+                    // 예외 처리(인풋 없음)
+                    if (roomname == null || roomname.isBlank()) {
+                        System.out.println("roomname is not input");
+                        return;
+                    }
+                    // 서버 전송
+                    messageTransmitter.println(userMessage+" "+roomname);
+                    continue;
+                }
+
+                // 클라이언트 메시지 표시
                 messageTransmitter.println(userMessage);
+
             }
         } catch (IOException e) {
             System.err.println("Socket Connection Error: " + e.getMessage());
