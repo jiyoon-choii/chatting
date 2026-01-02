@@ -19,7 +19,6 @@ public class ChatServer {
     private static final String SERVER_START_MESSAGE = "Chat server is running on port: ";
     private static final String CLIENT_CONNECTED_MESSAGE = "New client connection established from: ";
     private static final String DEFAULT_ROOM = "lobby"; //기본 채팅방
-//    private final Map<String, Room> rooms = new ConcurrentHashMap<String, Room>();
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
 
     // 모든 클라이언트에게 브로드캐스트하기 위한 출력 스트림 목록(스레드 안전하게)
@@ -57,6 +56,7 @@ public class ChatServer {
             String nickname = messageReciever.readLine();
             if (nickname == null || nickname.isBlank()) {
                 messageTransmitter.println("[Server] nickname required. closing...");
+//                clientWriters.add(messageTransmitter);
                 return;
             }
 
@@ -78,14 +78,20 @@ public class ChatServer {
                 if (line.isEmpty()) continue;
 
                 if (line.startsWith("/")) { // 명령어일 경우
-                    handleCommand(session, line, messageTransmitter);
+                    try {
+                        handleCommand(session, line, messageTransmitter);
+                    } catch (Exception e) {
+                        messageTransmitter.println("[Sever] internal error while processing command");
+                        e.printStackTrace();
+                    }
                 } else {
                     Room current = session.getCurrentRoom();
                     if (current == null) {
-
+                        messageTransmitter.println("[Server] you are not in any room");
                     } else {
                         System.out.println("Message from client: " + line);
-                        broadcast("Message received from [" + nickname + "] : " + line, messageTransmitter);
+//                        broadcast("Message received from [" + nickname + "] : " + line, messageTransmitter);
+                        current.broadcastToOthers("[" + session.getNickname() + "] " + line, session);
                     }
 
                 }
@@ -99,12 +105,16 @@ public class ChatServer {
                 if (current != null) {
                     current.leave(session);
                 }
+                clientWriters.remove(session.getOut());
             }
+            cleanupEmptyRooms();
             try {
                 clientConnection.close();
             } catch (IOException ignored) {}
         }
     }
+
+
 
     private void broadcast(String message, PrintWriter exclude) {
         // concurrent set 이므로 반복 중 일부가 실패해도 전체 영향 최소화
@@ -123,7 +133,6 @@ public class ChatServer {
         String[] parts = cmd.split("\\s+", 2);
         String keyword = parts[0];
         String content = (parts.length > 1) ? parts[1].trim() : null; //방 이름 추출
-//        String content = parts[1];
 
         switch (keyword) {
             // 방 정보
@@ -133,8 +142,8 @@ public class ChatServer {
                 // 방 없음
                 if (rooms.isEmpty()) {
                     out.println("[Server] no room exists");
+                    break;
                 } else {
-
                 // 방 목록
                     StringBuilder sb = new StringBuilder("[Server] room list: ");
                     rooms.keySet().forEach(name -> sb.append(name).append(" "));
@@ -151,7 +160,16 @@ public class ChatServer {
                 }
                 String roomName = parts[1].trim();
 
-                Room target = rooms.computeIfAbsent(roomName, Room::new);
+                //room 없을 시 에러
+                Room target = rooms.get(roomName);
+                if (target == null) {
+                    out.println("[Server] room '" + roomName + "' does not exist. Use /createRoom <room> first.");
+                    break;
+                }
+
+                //room 없을 시 생성
+//                Room target = rooms.computeIfAbsent(roomName, Room::new);
+
                 Room current = session.getCurrentRoom();
 
                 // 대상 방이 현재 방인지 여부
@@ -199,6 +217,17 @@ public class ChatServer {
                 lobby.broadcastToAll("[IN] " + session.getNickname() + " join " + DEFAULT_ROOM);
                 out.println("[Sever] moved to " + DEFAULT_ROOM);
                 break;
+            }
+
+            // 방 멤버 보기
+            case "/members" : {
+                if (rooms.get(content) == null) {
+                    out.println("[Server] room " + content + " does not exist");
+                    break;
+                } else {
+                    out.println("[Server] " + content + " : " + rooms.get(content));
+                    break;
+                }
             }
 
             // 방 만들기
@@ -250,15 +279,14 @@ public class ChatServer {
                 out.println("[Server] /rooms, /join <room>, /leave");
             }
 
-            // (선택) 빈 방 정리: 로비 제외
-            rooms.entrySet().removeIf(e -> !DEFAULT_ROOM.equals(e.getKey()) && e.getValue().isEmpty());
-
             // 사용자 정보
                 // 사용법
                 // 닉네임 중복체크
                 // 닉네임 변경
                 // 연결 종료
         }
+
+        cleanupEmptyRooms();
     }
 
 
@@ -297,6 +325,17 @@ public class ChatServer {
                 } catch (Exception ignored) {}
             }
         }
+
+        void broadcastToOthers(String message, ClientSession exclude) {
+            if (members.size() == 1 && members.contains(exclude)) return;
+
+            for (ClientSession m : members) {
+                if (m == exclude) continue;
+                try {
+                    m.getOut().println(message);
+                } catch (Exception ignored) {}
+            }
+        }
     }
 
     private static class ClientSession {
@@ -324,11 +363,7 @@ public class ChatServer {
     public static void main(String[] args) {
         ChatServer chatServer = new ChatServer();
         chatServer.startChatServer();
+        System.out.println("Chat server is running on port: " + SERVER_PORT);
     }
-
-
-
-
-
 
 }
